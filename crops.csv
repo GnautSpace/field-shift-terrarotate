@@ -1,9 +1,0 @@
-crop,category,water_demand,nitrogen_fixer,root_system,best_season,soil_health_score,market_value
-Corn,Cash Grain,High,False,Medium,Summer,2,4
-Soybean,Legume Cash,Medium,True,Medium,Summer,3,4
-Winter Rye,Cover Crop,Low,False,Deep Fibrous,Winter,5,1
-Sorghum,Drought Grain,Low,False,Deep Taproot,Summer,4,3
-Chickpea,Pulse Legume,Low,True,Medium,Spring,4,3
-Crimson Clover,Cover Crop,Low,True,Medium,Winter,5,1
-Alfalfa,Perennial Forage,High,True,Deep Taproot,Spring,5,4
-Sunflowers,Oilseed Cash,Medium,False,Deep Taproot,Summer,3,3
