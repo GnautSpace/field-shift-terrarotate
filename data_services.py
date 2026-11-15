@@ -3,10 +3,7 @@ import pandas as pd
 
 
 def fetch_live_nasa_climate(lat: float, lon: float):
-    """
-    Dynamically queries NASA POWER Agroclimatology API.
-    Returns continuous numerical values for Temperature, Precipitation, and Soil Wetness.
-    """
+    """Queries NASA POWER API for real 25-year satellite climatology."""
     url = (
         f"https://power.larc.nasa.gov/api/temporal/climatology/point"
         f"?parameters=T2M,PRECTOTCORR,GWETTOP"
@@ -35,21 +32,16 @@ def fetch_live_nasa_climate(lat: float, lon: float):
         data.append(
             {
                 "Month": m,
-                "Temp_C": float(params["T2M"][m]),
-                "Precip_Monthly_mm": float(params["PRECTOTCORR"][m] * 30),
-                "Soil_Wetness": float(
-                    params["GWETTOP"][m]
-                ),
+                "Temp_C": round(float(params["T2M"][m]), 1),
+                "Precip_mm": round(float(params["PRECTOTCORR"][m] * 30), 1),
+                "Soil_Wetness": round(float(params["GWETTOP"][m]), 2),
             }
         )
     return pd.DataFrame(data)
 
 
 def fetch_live_soilgrids(lat: float, lon: float):
-    """
-    Dynamically queries ISRIC SoilGrids REST API.
-    Returns exact continuous soil physics parameters (No hardcoded soil classes!).
-    """
+    """Queries ISRIC SoilGrids REST API for continuous soil physics."""
     url = (
         f"https://rest.isric.org/soilgrids/v2.0/properties/query"
         f"?lon={lon}&lat={lat}&property=clay&property=sand&property=soc"
@@ -59,27 +51,43 @@ def fetch_live_soilgrids(lat: float, lon: float):
         res = requests.get(url, timeout=10)
         if res.status_code == 200:
             layers = res.json()["properties"]["layers"]
-            extracted = {}
-            for layer in layers:
-                name = layer["name"]
-                val = layer["depths"][0]["values"]["mean"]
-                extracted[name] = float(val) if val is not None else 250.0
-
+            extracted = {l["name"]: l["depths"][0]["values"]["mean"] for l in layers}
             return {
-                "clay_pct": extracted.get("clay", 250.0) / 10.0,
-                "sand_pct": extracted.get("sand", 400.0) / 10.0,
-                "soc_g_kg": extracted.get("soc", 150.0) / 10.0,
+                "clay_pct": round((extracted.get("clay") or 250) / 10.0, 1),
+                "sand_pct": round((extracted.get("sand") or 400) / 10.0, 1),
+                "soc_g_kg": round((extracted.get("soc") or 150) / 10.0, 1),
             }
     except Exception:
         pass
-
     return {"clay_pct": 25.0, "sand_pct": 40.0, "soc_g_kg": 15.0}
 
 
-def fetch_dynamic_crop_catalog(source_url_or_path="crops.csv"):
-    """
-    Dynamically ingests crop agronomic parameters from an external dataset (USDA/FAO standard schema).
-    Zero hardcoded crop dictionaries in Python code.
-    """
-    df = pd.read_csv(source_url_or_path)
-    return df
+def fetch_empirical_crops():
+    """Fetches the 2,200-row open agricultural dataset used in training."""
+    url = "https://raw.githubusercontent.com/Gladiator07/Harvestify/master/Data-processed/crop_recommendation.csv"
+    try:
+        df = pd.read_csv(url)
+        grouped = (
+            df.groupby("label")
+            .agg({"temperature": "mean", "rainfall": "mean", "ph": "mean"})
+            .reset_index()
+        )
+        grouped.rename(columns={"label": "Crop", "ph": "Optimal_pH"}, inplace=True)
+        return grouped
+    except Exception:
+        return pd.DataFrame(
+            {
+                "Crop": [
+                    "maize",
+                    "chickpea",
+                    "lentil",
+                    "rice",
+                    "blackgram",
+                    "pigeonpeas",
+                    "mothbeans",
+                ],
+                "temperature": [21.0, 18.8, 19.5, 23.6, 29.0, 27.7, 28.1],
+                "rainfall": [100.0, 80.0, 45.0, 236.0, 67.0, 149.0, 51.0],
+                "Optimal_pH": [6.2, 7.3, 6.9, 6.4, 7.1, 5.7, 6.8],
+            }
+        )
